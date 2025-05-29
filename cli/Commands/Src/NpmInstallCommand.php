@@ -134,6 +134,8 @@ class NpmInstallCommand extends DockerCommand
         // NOTE: we can't use getComposeCommand here as mutagen has a ro filesystem and even if we skip mutagen here
         //       it runs in the existing node container with ro filesystem (well we could kill the node-container but
         //       this tradeoff seems to big
+        // NOTE 2: The node:18.9-alpine images come without git and openssl libs, which are required for npm install; 
+        //         add them before (does not fail is already installed)
         passthru("docker run --rm \
             --user " . trim(`id -u`) . ':' . trim(`id -g`) . " \
             -v $localCacheDir:/.npm \
