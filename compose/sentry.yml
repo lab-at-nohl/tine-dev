@@ -3,8 +3,8 @@ services:
   redis:
     container_name: sentry_redis
     image: redis:5.0.5
-    networks:
-      - sentry-net
+    #networks:
+    #  - sentry-net
 
   postgres:
     container_name: sentry_postgres
@@ -14,8 +14,8 @@ services:
       - POSTGRES_PASSWORD:sentry
     volumes:
       - ./data/postgresql:/var/lib/postgresql/data:rw
-    networks:
-      - sentry-net
+    #networks:
+    #  - sentry-net
 
   sentry:
     container_name: sentry
@@ -29,10 +29,10 @@ services:
       - SENTRY_POSTGRES_HOST=postgres
     ports:
       - 127.0.0.1:9000:9000
-    networks:
-      - sentry-net
-      - external_network
-      - internal_network
+    #networks:
+    #  - sentry-net
+    #  - external_network
+    #  - internal_network
 
   sentry_celery_beat:
     container_name: sentry_celery_beat
@@ -44,8 +44,8 @@ services:
       - SENTRY_SECRET_KEY=${SENTRY_SECRET}
       - SENTRY_POSTGRES_HOST=postgres
     command: "sentry run cron"
-    networks:
-      - sentry-net
+    #networks:
+    #  - sentry-net
 
   sentry_celery_worker:
     container_name: sentry_celery_worker
@@ -57,8 +57,8 @@ services:
       - SENTRY_SECRET_KEY=${SENTRY_SECRET}
       - SENTRY_POSTGRES_HOST=postgres
     command: "sentry run worker"
-    networks:
-      - sentry-net
+    #networks:
+    #  - sentry-net
 
 #  web:
 #    volumes:

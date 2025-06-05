@@ -1,1 +1,27 @@
-documentserver.yml
+# this is a override file to add a documentserver container
+services:
+  documentserver:
+    image: onlyoffice/documentserver:latest
+#    volumes:
+#      - ./configs/onlyoffice/local.json:/etc/onlyoffice/documentserver/local.json:ro
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: "4d379ead99817349de233e9edfff3522a91495b4"
+    #networks:
+    ##  - external_network
+    ##  - internal_network
+    links:
+      - traefik:tine.local.tine-dev.de
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.onlyoffice.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.routers.onlyoffice.rule=Host(`onlyoffice.local.tine-dev.de`)
+      - traefik.http.routers.onlyoffice.entrypoints=websecure
+      - traefik.http.routers.onlyoffice.tls=true
+      - traefik.http.routers.onlyoffice.middlewares=onlyoffice
+      - traefik.http.services.onlyoffice.loadbalancer.server.port=80
+      - traefik.http.services.onlyoffice.loadbalancer.passhostheader=true
+
+  web:
+    volumes:
+      - ./configs/onlyoffice/onlyofficeintegrator.inc.php:/etc/tine20/conf.d/onlyofficeintegrator.inc.php:ro

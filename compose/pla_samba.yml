@@ -9,6 +9,6 @@ services:
     environment:
       PHPLDAPADMIN_LDAP_HOSTS: samba
       PHPLDAPADMIN_HTTPS: "false"
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network

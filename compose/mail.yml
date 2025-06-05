@@ -7,9 +7,9 @@ services:
       MAILNAME: example.org
       MAIL_ADDRESS: test@example.org
       MAIL_PASS: test
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network
 
   web:
     ports:

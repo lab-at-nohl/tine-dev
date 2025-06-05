@@ -1,432 +1,316 @@
-tine-dev (docker dev setup)
-----
+*Get development going, fast. Containers for development of Tine Groupware. Rootless, operated by regular users (root is only needed to make the hostname known). Requires **podman** and **podman-compose**. Setup < 30 minutes.* 
 
-[[_TOC_]]
+# tine-dev Setup in userspace with podman
 
-# Pullup / console
+**Audience: community developers running linux** - *Tine Groupware* provides docker-based containers for a complete development setup, including relevant backends like DB, cache and a mailstack for testing (great!). As some images live in a non-public repository (as of June 2025), this fork adjusted the original [tine-dev repository](https://github.com/tine-groupware/tine-dev) to **use public sources**. Further, with docker you have to operate containers as root which might break thinks on your development server. Despite this fork utilizes *podman* (similar to docker) with advanced networking options and the ability to run **in user space**. 
 
-## Quickstart
+## Overview/Caveats
 
-Prerequisites: git, docker, php, composer, npm and your user is in the docker group. If not see "Install and Setup Docker"
+User's containers cannot open ports below 1024. Thus, you may find your development environment at **ports 8443 (ssl), 10443 (webpack/ssl) and 8080 (http, usually not needed). See [https://tine.local.tine-dev.de:8443]() eventually. 
 
-Note Mac User: install composer and npm via homebrew
-`brew install composer`
-`brew install node`
+Podman can combine containers into a single environment (e.g. network stack) called **Pod**. Therefore the network bridges *internal_network* and *external_network* are not required. Podman provides **pods** instead. Caveat: All ports inside the pod have to be unique (see below).   
 
-1. clone this git and open it `git clone https://github.com/tine-groupware/tine-dev.git tine-dev` and `cd tine-dev`
-2. install symfony/console dependencies `composer install`
-3. start tine20-docker setup `./console docker:up`, if you have not done this, install 4 to 6 answer y to clone repos
-4. initialize icon-set submodule: `cd tine20 && git submodule init && git submodule update && cd ..`
-5. install tine `./console tine:install`
-6. visit https://tine.local.tine-dev.de, login as tine20admin pw: tine20admin
+The user require **about 3.5 GB free space**. With podman you can find all rootless containers, images and so on at `~/.local/share/containers/`. 
 
-Note:
-In case tine stops working after a branch switch or computer restart run "./console tine:reinstall" WITHOUT stopping tine before that.
 
-## Optional
+## Prepare stack and podman
 
-- add `eval $(~/path/to//docker/console _completion --generate-hook)` to your shell's profile (e.g. ~/.bashrc or ~/.zshrc) to enable autocomplete
-- link your tine20 source `ln -s /path/to/tine/repo tine20` or just wait for console to clone it for you
-- link docservice source `ln -s /path/to/docservice/repo docservice` or just wait for console to clone it for you
-- link broadcasthub source `ln -s /path/to/tine20-broadcsthub/repo broadcasthub` or just wait for console to clone it for you
-- install docservice dependencies, if console has cloned it you don't need to do anything: `cd docservice && composer install --ignore-platform-reqs`
-- install broadcasthub dependencies, if console has cloned it you don't need to do anything: `cd broadcasthub && npm install`
+The way below is tested but may differ from the original instructions. All instructions are run by **non-root** user: 
 
-## Console Commands
-run `./console` in tine-dev directory to see available Commands
+### Clone repository
 
-## pullup.json
+As of June 2025 you have to have `git`, `PHP 8.3` and `composer` installed locally. 
 
-to override default settings copy .pullup.json to pullup.json
+```sh
+git clone -b podman-rootless --single-branch https://github.com/lab-at-nohl/tine-dev.git tine-dev-podman-rootless/
+cd tine-dev-podman-rootless/
+composer install
+```
 
-+ composeFiles: dockerset up "modules". Take a look at ./compose (Do not include the ones with -build.yml)
-+ build: if true images will be build locally
-+ more: any wishes? > issue tracker 
+### Setup podman
 
-# Links
+```sh
+systemctl --user start podman
+ls -l /run/user/$UID/podman/podman.sock
+# srw-rw---- 1 user1 users 0 28. Mai 12:37 /run/user/1000/podman/podman.sock
+```
 
-* https://linuxize.com/post/how-to-remove-docker-images-containers-volumes-and-networks/
+Please note, the UID is 1000 here (usually the first regular user). If you use a different UID you have to edit [docker-compose.yml]() accordingly, see below.  
 
-# Install and Setup Docker & other Prerequisites
+### Add local domain
 
-## Docker
+Unfortunately at this point you need to be root to edit `/etc/hosts`. Otherwise you have to setup/edit a DNS to include `tine.local.tine-dev.de`. Edit the hosts-file to add *tine.local.tine-dev.de* next to localhost like below:
 
-https://docs.docker.com/engine/install/
+```
+#    
+# IP-Address  Full-Qualified-Hostname  Short-Hostname(s)
+#
 
-## Add user to docker group (Linux)
+127.0.0.1	localhost tine.local.tine-dev.de
+```
 
-https://docs.docker.com/engine/install/linux-postinstall/
+Please note, with rootless podman containers tine-dev lives - from outside view - on localhost (while the original docker setup brings its own subnet 172.118.0.1/16). 
 
-## Install composer & npm (Ubuntu)
 
-    sudo apt install composer npm
+## Run tine-dev stack
 
-# Check/Get Docker Image
+### Initial run, setup/install
 
-Our dev image is on docker hub:
-https://hub.docker.com/r/tinegroupware/dev
+The mailstack images are made by the tine developers, node is an enhancement of the official image. Unfortunately their repository is internal only, thus you have to build them yourself locally. This is fast and easy and it does not require much space:
 
-# Show Containers
+```sh
+podman build --tag postfix:1.0.5 dockerfiles/mailstack/postfix/
+podman build --tag dovecot:1.0.3 dockerfiles/mailstack/dovecot/
+podman build --tag mailstackcontrol:1.0.5 dockerfiles/mailstack/control/
+podman build --tag node:18.9.0-alpine dockerfiles/node/2023.11/
+```
 
-    docker ps
+Other containers can be downloaded/pulled (automatically during setup if configured, see below):
 
-# Run bash in Container
+- registry.hub.docker.com/tinegroupware/dev:main-8.3
+- docker.io/library/traefik:v3.3
+- docker.io/library/mariadb:10.9.8
+- docker.io/library/redis:6.0.16
+- docker.io/dockage/mailcatcher:0.9.0
+- docker.io/clamav/clamav:latest
 
-    docker exec -it tine20 /bin/sh
+Please note: To avoid downloading the full *node:18.9*-Image (1.1GB large), which is only needed to run 'npm install' respectively `./console src:npmInstall` *once*, you nedd the modified node:18.9.0-alpine (30 MB extra). If you have trouble, however, try to use the full image (see at the end of this document); you may to remove it afterwards by issuing `podman image rm docker.io/library/node:18.9`. 
 
-# Open tine in Browser
+Now bring the necessary containers up. As the following console won't dettach, just open another one afterwards. 
 
-[tine.local.tine-dev.de](https://tine.local.tine-dev.de/) - nginx
+```sh
+systemctl --user start podman
+podman pod create --security-opt apparmor=unconfined tine20 
+./console docker:up
+```
 
-[tine.local.tine-dev.de](https://tine.local.tine-dev.de/) - webpack served
+Please note the parameter `--security-opt apparmor=unconfined`. This turns apparmor off, otherwise it will catch your php-fpm and other services. Similar parameters exist for SELinux. If you don't use either, go without this. 
 
-[tine.local.tine-dev.de/setup.php](https://tine.local.tine-dev.de/setup.php) - webpack served setup
+The `docker:up`-command should have provided for `cd tine20 && git submodule init && git submodule update && cd ..`. If you encounter problems with *initialize icon-set submodule*, missing icons or similar run that command manually inside the folder `tine20/tine20/`. 
 
-[localhost:4002](http://localhost:4002) Phpmyadmin Username:tine20 Password:tine20pw
+Next you have to install Tine Groupware in its containers (open another cli - the console before will continue to print out messages from the containers; Or press Ctrl+C to detach): 
 
-# Other Useful Functions
-## Containers
-
-    docker ps
-    docker ps -a            # shows all (not running only) containers
-    docker rm <container id/name>
-
-## Images
-
-    docker image ls
-    docker image ls -a      # shows all containers, as well as deps
-    docker image rm <image id/name>
-
-# Debugging with Xdebug
-## Debugging with PhpStorm
-
-this is the default xdebug.ini:
-
-    zend_extension=xdebug.so
-    xdebug.default_enable=on
-    xdebug.remote_enable=on
-    xdebug.remote_handler=dbgp
-    xdebug.remote_port=9001
-    xdebug.remote_host=172.18.0.1
-    xdebug.remote_autostart=on
-
-you need to define a "PHP remote debug" server in PhpStorm:
-
-     name: debugger
-     server: 
-       name: tine20docker
-       host: 172.18.0.1 (or tine20docker)
-       port: 9001 
-       debugger: Xdebug
-       path mapping:
-         /local/tine/tests -> /usr/share/tests
-         /local/tine/tine20 -> /usr/share/tine20
-     
-     ide key: serverName=tine20docker
-
-open Xdebug port in PhpStorm
-
-    File | Settings | Languages & Frameworks | PHP | Debug | Xdebug
-    - Debug port : 9001
-    - [x] can accept external connections 
-    
-if you have a different IP, you might need to use the XDEBUG_CONFIG env vars in docker-compose.yml
-
-## Debugging with vscode:
-You will need to install the "PHP Debug" extension by xdebug. The launch configuration to listen for xdebug connection, is already configured in this repo. Just start listening with "Listen for Xdebug".
-
-## Troubleshooting
-
-some tips on testing your xdebug/phpstorm setup:
-
-### Check Connectivity
-
-on docker host:
-
-    $ netstat -tulpen | grep 9001
-    tcp        0      0 0.0.0.0:9001            0.0.0.0:*               LISTEN      1000       2918160    14641/java
-
-in container:
-
-    $ nc -vz 172.118.0.1 9001
-    172.118.0.1 (172.118.0.1:9001) open
-
-### Check xdebug Log
-
-- activate xdebug log in container (add `remote_log=/tine/logs/xdebug.log` in xdebug.yml)
-- look into log (default path: /tine/logs/xdebug.log)
-
-### Allow iptables Access from Container -> Host
-
-    sudo iptables -I INPUT 1 -i <docker-bridge-interface> -j ACCEPT
-    
-<docker-bridge-interface> is something like "br-3ff4120010e5" which has ip:172.118.0.1 (visible with ifconfig)
-
-
-### Docker Network Problems (for example: "ERROR: Pool overlaps ...")
-
-you might need to remove old / unused docker networks:
-
-    ➜  docker network ls                                                                                                                                 git:(phil|✚4⚑2
-    NETWORK ID     NAME                           DRIVER    SCOPE
-    833313480af2   docker_internal_network        bridge    local
-    0ed859aaf6ea   tine20_internal_network        bridge    local
-    92b66a6b4791   tine-docker_external_network   bridge    local
-    c6e1e1f2a5cb   tine-docker_internal_network   bridge    local
-
-    ➜  docker network rm docker_internal_network tine20_internal_network docker_external_network docker_internal_network
-
-OR
-
-    ➜  docker network prune
-
-# Debug / Test Stuff with Fake Previews
-
-sometimes you don't have a working doc service but need to test files with previews.
-
-## Copy Some Images to Container:
-
-    docker cp ~/Pictures/image1.png tine20:/tine/files
-    docker cp ~/Pictures/image2.png tine20:/tine/files
-    
-## Patch tine20/Tinebase/FileSystem/Preview/ServiceV1.php
+```sh
+# Patch webpack to find the web-container inside the pod
+sed -e 's|http://localhost/|http://tine20_web_1/|' -i tine20/tine20/Tinebase/js/webpack.dev.js
+# For unknown reason not all containers come up at first run...
+podman pod restart tine20
+podman ps -a # << just to make sure >>
+# ... STATUS ... NAMES
+#     Up ...     38302809a192-infra
+#     Up ...     traefik
+#     Up ...     tine20_cache_1
+#     Up ...     tine20_db_1
+#     Exited (0) tine20_mailstack_1
+#     Up ...     tine20_mailcatcher_1
+#     Up ...     clamav
+#     Up ...     tine20_postfix_1
+#     Up ...     tine20_dovecot_1
+#     Up ...     tine20_web_1
+#     Up ...     tine20_webpack_1
+#
+# prepare source code, install npm (consider freeing space if full node:18.9 is used, see above)
+./console src:composer install
+./console src:npmInstall
+# Generate self-signed cert and copy CA to host to import into browser 
+./console docker:generateCert
+podman cp traefik:/etc/traefik/ca.pem ./
+# install Tine groupware <> setup.php --install; For unknown reasons need to be run twice
+./console tine:install
+./console tine:install
+```
+
+If `tine:install` fails, just run it a second time (it was the case to me). Also it might be preferable to setup xDebug before running; Careful, tine-dev uses **port 9001** (default: 9003). If you use VS Code, you can find a short tutorial in [step 1 here](https://thomashysselinckx.medium.com/activating-xdebug-on-visual-studio-code-laravel-herd-cfd0553d26e0), following this the error message regarding xDebug will disappear. 
+
+Visit https://tine.local.tine-dev.de:8443, login as tine20admin pw: tine20admin
+
+### Reuse stack later - start stop pod
+
+You can administrate your stack like this (again: as a regular user):
+
+```sh
+# Create the podman.sock if not yet there
+systemctl --user start podman
+podman pod start tine20
+podman pod stop tine20
+podman pod restart tine20
+```
+
+The `systemctl` call is required only if after you reboot the computer. It is harmless to do so twice though. 
+
+Visit https://tine.local.tine-dev.de:8443, login as tine20admin pw: tine20admin
+
+### Remove stack
+
+To remove tine-dev (not the downloaded/built images) run:
+
+```sh
+podman pod stop tine20
+podman pod rm tine20
+```
+
+The following may help (if anything brakes) and your user has **only tine-dev containers** (as it will remove everything from userspace), including the images.  
+
+```sh
+podman stop -a
+podman rm -a
+podman image prune -a
+podman network prune
+```
+
+In case of a total hang, you can issue `podman system prune`. 
+
+## Setup additional containers
+
+to do.
+
+## Modifications and further reading
+
+Below you can find the ratio of modifications if you need to adjust anything. This branch in the tine-dev **fork comes with the necessary changes already**, see in detail below. 
+
+### Changes regarding networking
+
+While the docker compose files come with sophisticated networking, *internal_network* and *external_network*, podman **pods** provide a network in which all containers share the same ip to the outside but have, however, different hostnames inside. Thus, internal/external extra networks are not needed but **ports have to be unique** (even though not all are exposed to the outside) and **exposed ports cannot be below 1024**; Additionally *localhost* only adresses the same container not the whole pod. 
+
+1. **Webpack** cannot connect to contianer web by *localhost*, thus change it to the container's name: `sed -e 's|http://localhost/|http://tine20_web_1/|' -i tine20/tine20/Tinebase/js/webpack.dev.js` (documentation here only; run after tine source is downloaded by script)
+
+2. Remove networking in **all compose files**, be specific for intra-container communication: `sed -e 's/  networks:$/  #networks:/' -e 's/  - internal_network/#  - internal_network/' -e 's/  - external_network/#  - external_network/' -e 's/  - sentry-net/#  - sentry-net/' -i compose/*.yml`
+
+3. **Manually comment network-entries** in `docker-compose.yml`, like before but manually - don't forget the network eentries at the end. 
+
+4. Adjust *exposed/internal ports* for **Traefik** in `docker-compose.yml` like this (8080 = 80, 8443 = 443, 18443 = 10443) and *mount the socket by UID*:
+```yml
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --entrypoints.web.address=:8080
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entrypoints.websecure.address=:8443
+      - --entrypoints.webpacksecure.address=:18443
+      - --accesslog=true
+      - --api=true
+    ports:
+      - 8080:8080
+      - 8443:8443
+      - 10443:18443
+    volumes:
+      - ./configs/traefik/:/etc/traefik/:ro
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:ro
+```
+
+5. Change for image **web** in `docker-compose.yml` the server URL like `TINE20_URL: https://tine.local.tine-dev.de:8443`. 
+
+### compose/mailstack.yml
+
+Change compose-file to use the images made by `podman build` (see above) 
+
+```yml
+services:
+  postfix:
+    #image: dockerregistry.metaways.net/tine20/docker/postfix:1.0.5
+    image: postfix:1.0.5
+
+  dovecot:
+    #image: dockerregistry.metaways.net/tine20/docker/dovecot:1.0.3
+    image: dovecot:1.0.3
+
+mailstack:
+    #image: dockerregistry.metaways.net/tine20/docker/mailstackcontrol:1.0.5
+    image: mailstackcontrol:1.0.5
+```
+
+### cli/Commands/Docker/DockerCommand.php
+
+To use podman modify: 
 
 ```php
-     public function getPreviewsForFile($_filePath, array $_config)
-     {
-        // just for testing
-        $blob1 = file_get_contents('/tine/files/ssh_password.png');
-        $blob2 = file_get_contents('/tine/files/tine20_datenbanken.png');
-        return array('thumbnail' => array('blob'), 'previews' => array($blob1, $blob2));
-        // [...]
-     }
+    #protected array $composeCommand = ['docker', 'compose'];
+    protected array $composeCommand = ['podman', 'compose', '--podman-run-args="--pod=tine20"'];`
 ```
-## Configure Previews (config.inc.php)
+
+And link to publicly available images:
 
 ```php
-'filesystem' => array(
-    'createPreviews' => true,
-    'previewServiceVersion' => 1,
-),
+        'main' => [
+        #    'web' => 'dockerregistry.metaways.net/tine20/tine20/dev:2024.11-8.3',
+        #    'webpack' => 'dockerregistry.metaways.net/tine20/tine20/node:18.9.0-alpine-r1',
+            'web' => 'registry.hub.docker.com/tinegroupware/dev:main-8.3',
+            'webpack' => 'docker.io/library/node:18.9-alpine',
 ```
 
-## Create Previews for files
+### cli/Commands/Src/NpmCommand.php
 
-     docker exec --user nginx tine20 sh -c "cd /tine/tine20/ && php tine20.php  --method Tinebase.fileSystemCheckPreviews  --username=test --password=test"
-
-# Add Document Service
-
-NOTE: some fonts are not available on the minimal docker image ... so don't
- wonder about strange looking texts ... ;) 
-
-## Clone, Initialize and Link Repository
-
-    git clone git@gitlab.metaways.net:tine20/documentPreview.git
-    cd documentPreview
-    composer install
-    cd /path/to/tine20-docker
-    ln -s /patch/to/docservice docservice
-    
-## Configure
-
-note: this only works with tine20.com/2018.11* branches
+Inside function `protected function execute(InputInterface $input, OutputInterface $output)`: 
 
 ```php
-'filesystem' => array(
-    'createPreviews' => true,
-    'previewServiceVersion' => 2,
-    'previewServiceUrl' => 'http://docservice/v2/documentPreviewService',
-),
+        #passthru("docker run --rm \
+        #    --user " . trim(`id -u`) . ':' . trim(`id -g`) . " \
+        #    -v $localCacheDir:/.npm \
+        #    -v {$this->getTineDir($io)}/Tinebase/js:/usr/share/tine20/Tinebase/js \
+        #    {$env['WEBPACK_IMAGE']} \
+        #    sh -c 'cd /usr/share/tine20/Tinebase/js && npm {$input->getArgument('cmd')}'", $result_code); // --loglevel verbose
+        passthru("podman run --rm \
+            -v $localCacheDir:/.npm \
+            -v {$this->getTineDir($io)}/Tinebase/js:/usr/share/tine20/Tinebase/js \
+            {$env['WEBPACK_IMAGE']} \
+            sh -c 'cd /usr/share/tine20/Tinebase/js && npm {$input->getArgument('cmd')}'", $result_code);
+
 ```
 
-# Add tine Broadcasthub
-## Clone, Initialize and Link Repository
+### cli/Commands/Src/NpmInstallCommand.php
 
-    git clone git@gitlab.metaways.net:tine20/tine20-broadcasthub.git broadcasthub
-    cd broadcasthub
-    # Make sure NODE_ENV is not set or is not "production"
-    # development dependencies have to get installed
-    npm install
-    cd /path/to/tine20-docker
-    ln -s /patch/to/broadcasthub broadcasthub
+Inside function `public function runNpmInstall($dir): int`:
 
-Make sure to always fetch the latest production docker image for the tine broadcasthub, change the tag in file `compose/broadcasthub` accordingly.
-
-
-## Configure
-There is a setup task in the tine repository for adding an `auth_token` record: `setup.php --add_auth_token --`.
-
-Formerly this record had to be inserted manually via [phpMyAdmin](#open-tine20-in-browser) in order to connect with a websocket client to the tine Broadcasthub websocket server:
-
-    INSERT INTO tine20_auth_token (id, auth_token, account_id, valid_until, channels) VALUES ('longlongid', 'longlongtoken', (select id from tine20_accounts where login_name = "tine20admin"), ADDDATE(NOW(), INTERVAL 1 YEAR), '["broadcasthub"]');
-
-## Development
-Follow the setup instructions above. Make sure to link your local tine Broadcasthub repository into the docker setup. Prior to run `./console docker:up` copy `.pullup.json` to `pullup.json` and change the entry `broadcasthub` to `broadcasthub-dev`. This way a development container for the tine Broadcasthub is ran rather than the production container. The development container has the following features (see `compose/broadcasthub-dev.yml` for complete setup):
-
-* The tine Broadcasthub code is mounted from localhost into the container
-* DEBUG is set to full debug output. This output is displayed along with all other logs when `./console docker:up` is used to pullup the `tine20/docker` setup
-* Node is executed by `nodemon` within the container. `nodemon` automatically restarts `node` in the container on file changes in the local tine Broadcasthub repository. A file change can also be simulated with `touch app.js` on localhost
-
-Adapt the websocket URL in `broadcasthub/dev/client.js` to match the URL of the tine Broadcasthub in the docker setup, i.e. change the port in `ws://localhost:8080` to whatever port the tine Broadcasthub is exposed to in the docker setup (see `compose/broadcasthub-dev.yml`).
-
-Now you can start the development websocket client: `node broadcasthub/dev/client.js` and check if broadcast messages are received.
-
-In order to trigger a websocket broadcast message, either log into the Redis CLI of the `tine20/docker` setup using something like `docker exec -it cache redis-cli` and execute something like `publish broadcasthub "A broadcast message!"`. Or log into the tine frontend, open the file manager and upload a file. Running `dev/trigger.js` does not work here because the `tine20/docker` Redis service is not exposed to the localhost and only available from within the `docker-compose` environment.
-
-NOTE (2021-09-29): The websocket client in the tine client and the markup of changed files in file manager do not exist yet.
-
-
-# Clear tine Cache
-
-    docker exec --user nginx tine20 sh -c "cd /tine/tine20/ && php tine20.php --method=Tinebase.clearCache --username test --password test"
-    
-# TODO: Add phing invocations
-
-# Restart webpack-dev-server
-
-im tine container:
-
-    ps aux | grep webpack
-    kill [PID]
-
-# Use ramdisk for SQL Storage
-
-davor muss der alte db container gelöscht werden, sonst greift das mount nicht:
-
-    docker rm db
-
-ramdisk erzeugen:
-
-    sudo mkdir /mnt/ramdisk
-    sudo mount -t tmpfs -o size=512m tmpfs /mnt/ramdisk
-    
-wenn man mag, kann das mount in die /etc/fstab geschoben werden.
-    
-    tmpfs   /mnt/ramdisk tmpfs   nosuid,size=512M   0 0
-
-docker-compose:
-
-    # start docker with ramdisk & webpack
-    php scripts/docker.php webpack ramdisk
-
-achtung: man verliert natürlich seine db nach dem reboot!
-
-achtung 2: man darf sonst nichts in die ramdisk legen, sonst meckert mysql/maria
-
-# Sentry
-
-you need to add sentry to your /etc/hosts file (because of CSRF):
-
-    127.0.0.1       localhost sentry
-
-First boot:
-
-    ./console docker:up sentry [...]
-    docker exec -it sentry bash
-    ./entrypoint.sh sentry upgrade
-
-# Use MySQL Instead of MariaDB
-
-add "mysql" to your pullup.json!
-
-# https
-(From now ) Only https on port 443 is supported for services integrated in tine. Like tine itself (tine.local.tine-dev.de), broadcasthub (broadcasthub.local.tine-dev.de) or onlyoffice (onlyoffice.local.tine-dev.de). Backend only services like documentpreview and utility applications like phpmyadmin (localhost:4002
-) still use http without domain nam
-
-Certificates are set up automatically. There are several options that are tried in this order:
-1. Custom certificates: If there ist a certificate in configs/traefik/privatekey.pem and configs/traefik/fullchain.pem, it will be used. See Generate self-signed certificates
-2. (Metaways only): letsencrypt certificate: real certificate signed by letsencrypt usefull for e.g. webauth testing. See Configure letsencrypt certificate
-3. Generated cert: if no certificate is found, our web server will generate a self-signed certificate for you
-
-## Generate self-signed certificates
-It is easist to use a wildcard certificate for *.local.tine-dev.de. You can generate one with ./console docker:generateCert.
-
-The resulting ca, certificate and private key will be placed in configs/traefik/ca.pem, configs/traefik/fullchain.pem or configs/traefik/privatekey.pem.
-
-You may import your self-signed certificate into your browser. Be aware of the security implications.
-1. (firefox) goto Settings -> search("Certificates")  -> Certificates -> View Certificates… or (chrome) goto chrome://settings/certificates  
-3. press Authorities -> Import
-4. select `/<path to docker setup>/configs/traefik/ca.pem`
-5. check `Trust this CA to identify websites.` or `Trust this certificate for identifying websites`
-6. press OK
-
-## Configure letsencrypt certificate
-Note: You can also obtain a letsencrypt certificate by other means and use it as a custom certificate.
-
-Our letsencrypt private key is part of this repo. It will be automatically decrypted and used if properly configured. Therefore, you will need to set up sops with age and have your age key added.
-
-* SOPS](https://github.com/getsops/sops) is a secret management tool that can be used to encrypt and decrypt secrets (files), and manage multiple keys per secret. It supports a wide range of keys and key services, such as aws kms, vault, gpg, or age. 
-* age](https://github.com/FiloSottile/age) is a simple asymmetric encryption tool.
-
-### Setup
-1. download and install the sops binary (there is no ubuntu package). download and instructions. (move to /bin): https://github.com/getsops/sops/releases.
-2. install age `sudo apt install age`
-3. acquire age key. You can either use your own age key (preferred see: Generating and adding a new age key) or use a shared age key. It can be found in our tine dev password store as `age - seshared`.
-5. add age key to `~/.config/sops/age/keys.txt`. This file may contain multiple keys. It may look like this:
-```
-personal test key
-# created: 2025-02-20T11:05:48+01:00
-# public key: age14nlgzt9mk6g6vrxj29y5vm4zz0els2y8qlcl7cdmfdxuwvgl2e3scupx0k
-AGE-SECRET-KEY-1UZH4UNCDX8XV87RZ8JA7FW2LMFP0MV4G0L0DZZ6W8433RLX0WPKQVV936Y
-
-# another example key
-# created: 2025-02-20T11:10:08+01:00
-# public key: age1qx8l72pa56u5ddjj60quvzhsp3wmkx60z5tu43h55n7rkhxzvvgsn3ce09
-AGE-SECRET-KEY-1UN8LUTH3FE74GKJ0Z749LZEUW9Q0N27AGEEKDKYGHHE95R3AUMPQYCUQVS
+```php
+        #passthru("docker run --rm \
+        #    --user " . trim(`id -u`) . ':' . trim(`id -g`) . " \
+        #    -v $localCacheDir:/.npm \
+        #    -v $dir:/usr/share/tine20/Tinebase/js \
+        #    {$env['WEBPACK_IMAGE']} \
+        #    sh -c 'cd /usr/share/tine20/Tinebase/js && npm prune --no-optional --ignore-scripts'", $result_code); // --loglevel verbose
+        passthru("podman run --rm \
+            -v $localCacheDir:/.npm \
+            -v $dir:/usr/share/tine20/Tinebase/js \
+            {$env['WEBPACK_IMAGE']} \
+            sh -c 'cd /usr/share/tine20/Tinebase/js && npm prune --no-optional --ignore-scripts'", $result_code);
 ```
 
-### Generating and adding a new age key
-1. a new age key can be generated with `age-keygen`. (It still needs to be added to `~/.config/sops/age/keys.txt`)
-2. add the public key to `.sops.yaml` in this repo. It needs to be added under `keys` and all (required) `key_groups`
-3. git commit and push to master
-4. ask someone to run `find -- "$(git rev-parse --show-toplevel)" -type d -name .git -prune -o -type f \( -name '*.sops.*' \! -name .sops.yaml \) -exec sops updatekeys -- {} \;` to enrolle the new key. (This obviously requires an already enrolled key)
-5. git commit and push all update secrets
+### cli/Commands/Src/ComposerCommand.php
 
-### Cert is expired
-When the cert is expiered, it needs to be update. This requires access to dns. Ask a dev ops.
-1. `sudo certbot certonly --manual --preferred-challenges=dns -d '*.local.tine-dev.de'`
-2. `echo -e 'server dns0.metaways.net\nupdate add _acme-challenge.local.tine-dev.de. 60 txt oNs2fcFzTYm47o-ltnWRyi0VR8EgTG5oht1MBtbiiq0\nsend' | nsupdate -k ~/.mwclouddns`
-3. `sudo cat /etc/letsencrypt/live/local.tine-dev.de/fullchain.pem > configs/traefik/letsencrypt.fullchain.pem`
-4. copy content manually `sudo cat /etc/letsencrypt/live/local.tine-dev.de/privkey.pem ` to `sops configs/traefik/letsencrypt.privkey.sops.pem`
-5. `echo -e 'server dns0.metaways.net\nupdate delete _acme-challenge.local.tine-dev.de. 60 txt oNs2fcFzTYm47o-ltnWRyi0VR8EgTG5oht1MBtbiiq0\nsend' | nsupdate -k ~/.mwclouddns`
+Inside function `publiprotected function execute(InputInterface $input, OutputInterface $output)`:
 
-### Adding more service
-* take a look at the other service. (broadcasthub is a good example)
-* the service should use there own domain -> <service-name>.local.tine-dev.de
-* we use traefik and traefik labeles to configure our reverse proxy
-    ```
-        - traefik.enable=true
-        - traefik.http.routers.broadcasthub.rule=Host(`broadcasthub.local.tine-dev.de`)
-        - traefik.http.routers.broadcasthub.entrypoints=websecure
-        - traefik.http.routers.broadcasthub.tls=true
-        - traefik.http.services.broadcasthub.loadbalancer.server.port=80
-    ```
-* if a service needs to be accessable under its domain, you can use links. Example: make tine accessable to the broadcasthub throug the revers proxy as `tine.local.tine-dev.de`. Docker will add an /etc/hosts `tine.local.tine-dev.de <traefik internal ip>` in the broadcasthub continer:
-    ```
-    # this is a override file to add a broadcasthub container
-    services:
-    broadcasthub-service: # technical debt: should be simply named broadcasthub
-        ...
-        links:
-        - traefik:tine.local.tine-dev.de
-        ...
-    ```
-* routing based on path (webpack):
-    ```
-    ...
-        labels:
-            - traefik.http.routers.webpack.rule=Host(`tine.local.tine-dev.de`) && (PathPrefix(`/webpack-dev-server`) || PathPrefix(`/sockjs-node`) || PathRegexp(`\.js$`))
-    ```
-# Activate tine Cronjob
+```php
+        #passthru('docker run --rm --user ' . trim(`id -u`) . ':' . trim(`id -g`) .
+        #    ' -v ' . $tineDir . ':/usr/share/tine20' .
+        #    ' -v ' . $tineDir . '/../tests:/usr/share/tests' .
+        #    ' -v ' . $this->baseDir . '/data/composer:/.composer' .
+        #    ' -v ' . $localCacheDir . ':/composercache' .
+        #    ' '. $env['WEB_IMAGE'] . ' sh -c "cd /usr/share/tine20; composer config --global cache-dir /composercache; composer ' . $input->getArgument('cmd') . '"', $result_code);
+        passthru('podman run --rm ' . 
+            ' -v ' . $tineDir . ':/usr/share/tine20' .
+            ' -v ' . $tineDir . '/../tests:/usr/share/tests' .
+            ' -v ' . $this->baseDir . '/data/composer:/.composer' .
+            ' -v ' . $localCacheDir . ':/composercache' .
+            ' '. $env['WEB_IMAGE'] . ' sh -c "cd /usr/share/tine20; composer config --global cache-dir /composercache; composer ' . $input->getArgument('cmd') . '"', $result_code);
+```
 
-~~~shell
-$ docker exec --user root -it tine20-web-1 sh
-$ cat > /etc/crontabs/tine20
-*/1    *   *   *   *   tine20.php --method Tinebase.triggerAsyncEvents
-~~~
+### configs/xdebug/xdebug.ini
 
-# Mailcatcher
-Our mail setup (or more precisely postfix) forwards all non-local mails to a mailcatcher. Mailcatcher is reachable under [https://mailcatcher.local.tine-dev.de](https://mailcatcher.local.tine-dev.de).
+`xdebug.client_host=host.containers.internal`
 
+### compose/xdebug.yml
 
-Note: Do not click on quit in mailcatcher ui, it stops the container!
+`XDEBUG_CONFIG: "remote_host=host.containers.internal remote_enable=on remote_port=9001"`
+
+### compose/broadcasthub.yml
+
+```yml
+    #image: dockerregistry.metaways.net/tine20/tine20-broadcasthub:0.8-r2
+    image: registry.hub.docker.com/tinegroupware/broadcasthub:latest
+
+      TINE20_JSON_API_URL: https://tine20_web_1
+      TINE20_JSON_API_URL_PATTERN: (https://tine20_web_1)|(http://tenant(1|2|3).my-domain.test)
+```

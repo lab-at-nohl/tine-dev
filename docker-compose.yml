@@ -8,24 +8,24 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --providers.file.directory=/etc/traefik/dynamic
-      - --entrypoints.web.address=:80
+      - --entrypoints.web.address=:8080
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
       - --entrypoints.web.http.redirections.entryPoint.scheme=https
       - --entrypoints.web.http.redirections.entrypoint.permanent=true
-      - --entrypoints.websecure.address=:443
-      - --entrypoints.webpacksecure.address=:10443
+      - --entrypoints.websecure.address=:8443
+      - --entrypoints.webpacksecure.address=:18443
       - --accesslog=true
       - --api=true
     ports:
-      - 80:80
-      - 443:443
-      - 10443:10443
+      - 80:8080
+      - 443:8443
+      - 10443:18443
     volumes:
       - ./configs/traefik/:/etc/traefik/:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - external_network
-      - internal_network
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:ro
+    #networks:
+    #  - external_network
+    #  - internal_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`traefik.local.tine-dev.de`)"
@@ -45,17 +45,17 @@ services:
       # [ERROR] Incorrect definition of table mysql.column_stats
       # see https://github.com/wallabag/wallabag/issues/6572
       MARIADB_AUTO_UPGRADE: 1
-    networks:
-      - internal_network
-      - external_network
+    #networks:
+    #  - internal_network
+    #  - external_network
     ports:
       - "3306:3306"
 
   cache:
     image: redis:6.0.16
-    networks:
-      - internal_network
-      - external_network
+    #networks:
+    #  - internal_network
+    #  - external_network
     ports:
       - "6379:6379"
 
@@ -92,7 +92,7 @@ services:
       TINE20_LICENSE_PATH: /usr/share/tests/tine20/Tinebase/License/license_contract_MW-TEST-3.0.0.pem
       TINE20_SETUP_HTPASSWD: "dev:$$apr1$$Ivpb7VfS$$kLnOg/uI0eNpTUhbeZF7n/" # dev:dev
       TINE20_FQDN: tine.local.tine-dev.de
-      TINE20_URL: https://tine.local.tine-dev.de
+      TINE20_URL: https://tine.local.tine-dev.de:8443
       DEBUG_COLORS: "true"
       TERM: xterm-256color
       COLORTERM: truecolor
@@ -108,9 +108,9 @@ services:
       - ${HOMEDIR}/.dockertine20web_bash_history:/root/.bash_history
       # tine filesdir
       - tinefiles:/var/lib/tine20/files
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`tine.local.tine-dev.de`)"
@@ -119,14 +119,14 @@ services:
       - "traefik.http.services.web.loadbalancer.server.port=80"
     stop_grace_period: 1s
 
-networks:
-  internal_network:
-    internal: true
-  external_network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.118.0.0/16
+#networks:
+#  internal_network:
+#    internal: true
+#  external_network:
+#    driver: bridge
+#    ipam:
+#      config:
+#        - subnet: 172.118.0.0/16
 
 volumes:
   tinefiles:

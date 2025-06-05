@@ -4,7 +4,8 @@ services:
     volumes:
       - ./configs/broadcasthub/broadcasthub.inc.php:/etc/tine20/conf.d/broadcasthub.inc.php:ro
   broadcasthub-service:
-    image: dockerregistry.metaways.net/tine20/tine20-broadcasthub:0.8-r2
+    #image: dockerregistry.metaways.net/tine20/tine20-broadcasthub:0.8-r2
+    image: registry.hub.docker.com/tinegroupware/broadcasthub:latest
     container_name: broadcasthub
     environment:
       REDIS_URL: redis://cache:6379
@@ -12,16 +13,16 @@ services:
       AUTH_TIMEOUT: 5000
       WS_PORT: 80
       ENABLE_MULTITENANCY_MODE: 'false'
-      TINE20_JSON_API_URL: https://tine.local.tine-dev.de
-      TINE20_JSON_API_URL_PATTERN: (https://tine.local.tine-dev.de)|(http://tenant(1|2|3).my-domain.test)
+      TINE20_JSON_API_URL: https://tine20_web_1
+      TINE20_JSON_API_URL_PATTERN: (https://tine20_web_1)|(http://tenant(1|2|3).my-domain.test)
       DEBUG_DEFAULT_LOGGING: "on"
       DEBUG_LOG_TO_FILE: "off"
       DEBUG_LOG_FILE: ../../stdout.log
       TEST_INTEGRATION_WS_URL: ws://broadcasthub:80
       TEST_E2E_WS_URL: ws://broadcasthub:80
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network
     links:
       - traefik:tine.local.tine-dev.de
     labels:

@@ -10,6 +10,6 @@ services:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
       MYSQL_USER: "${MYSQL_USER:-tine20}"
       MYSQL_PASSWORD: "${MYSQL_PASSWORD:-tine20pw}"
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network

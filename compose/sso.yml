@@ -59,9 +59,9 @@ services:
       CLIENTS_CONFIGURATION_PATH: /tmp/config/clients-config.json
     volumes:
       - ./configs/sso/oidc_mock_server_client.json:/tmp/config/clients-config.json:ro
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network
 
   # callback url: https://oidctestclient.local.tine-dev.de/auth/callback
   oidc-test-client:
@@ -82,9 +82,9 @@ services:
       test: [CMD, "true"]
     links:
       - traefik:tine.local.tine-dev.de
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network
     labels:
       - traefik.enable=true
       - traefik.http.routers.oidctestclient.rule=Host(`oidctestclient.local.tine-dev.de`)
@@ -110,9 +110,9 @@ services:
     #volumes:
       #- ./fullchain.pem:/fullchain.pem
       #- ./privkey.pem:/privkey.pem
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network
 
   web:
     volumes:

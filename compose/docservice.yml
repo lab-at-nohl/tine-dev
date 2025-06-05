@@ -5,8 +5,8 @@ services:
     container_name: docservice
     ports:
       - "4050:80"
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network
   web:
     volumes:
       - ./configs/docservice/docservice.inc.php:/etc/tine20/conf.d/docservice.inc.php:ro

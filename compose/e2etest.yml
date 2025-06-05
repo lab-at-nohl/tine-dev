@@ -9,5 +9,5 @@ services:
     user: node
     volumes:
       - "./tine20/:/tine20"
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network

@@ -7,8 +7,8 @@ services:
       ROOT_PASSWORD: sambaPassword!
       SAMBA_ADMIN_PASSWORD: sambaPassword!
       LDAP_ALLOW_INSECURE: "true"
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network
     privileged: true
     volumes:
     - ./configs/samba-ad/custom.sh:/usr/local/bin/custom.sh

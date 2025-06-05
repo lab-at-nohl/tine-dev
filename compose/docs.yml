@@ -6,8 +6,8 @@ services:
       - ./tine20:/docs
     tmpfs:
       - /docs/docs/developers/api/
-    networks:
-      - external_network
+    #networks:
+    #  - external_network
     labels:
       - traefik.enable=true
       - traefik.http.routers.mkdocs.rule=Host(`docs.local.tine-dev.de`)

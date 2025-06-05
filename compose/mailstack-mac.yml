@@ -8,9 +8,9 @@ services:
       MYSQL_PASSWORD: &mysqlpw "${MYSQL_PASSWORD:-tine20pw}"
     depends_on:
       - db
-    networks:
-      - internal_network
-      - external_network
+    #networks:
+    #  - internal_network
+    #  - external_network
     ports:
     - "4025:25"
     #  - "587:587"
@@ -28,9 +28,9 @@ services:
       - db
     volumes:
       - ./configs/mailstack/sieve-trace-log.conf:/etc/dovecot/conf.d/90-sieve-trace-log.conf
-    networks:
-      - internal_network
-      - external_network
+    #networks:
+    #  - internal_network
+    #  - external_network
     ports:
     - "4143:143"
     #  - "110:110"
@@ -48,16 +48,16 @@ services:
       POSTFIX_DATABASE: *postfixdb
     volumes:
       - ./configs/mailstack/scripts:/scripts
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network
 
   mailcatcher:
     image: dockage/mailcatcher:0.9.0
     ports:
       - "4006:1080"
     networks: 
-      - internal_network
-      - external_network
+    #  - internal_network
+    #  - external_network
     labels:
       - traefik.enable=true
       - traefik.http.routers.mailcatcher.rule=Host(`mailcatcher.local.tine-dev.de`)

@@ -14,8 +14,8 @@ services:
       - ./configs/matrix/synapse:/etc/synapse/
       - ./tine20/docs/operators/matrix/rest_auth_provider.py:/usr/local/lib/python3.12/site-packages/rest_auth_provider.py
       - synapse:/data
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network
     links:
       - traefik:tine.local.tine-dev.de
     labels:
@@ -29,8 +29,8 @@ services:
     image: vectorim/element-web:latest
     volumes:
       - ./configs/matrix/element-config.json:/app/config.json
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network
     labels:
       - traefik.enable=true
       - traefik.http.routers.element.rule=Host(`element.local.tine-dev.de`)
@@ -45,8 +45,8 @@ services:
     volumes:
       - ./configs/matrix/client.well-known.json:/usr/share/nginx/html/.well-known/matrix/client
       - ./configs/matrix/well-known.conf:/etc/nginx/conf.d/default.conf
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network
     labels:
       - traefik.enable=true
       - traefik.http.routers.matrixwellknwon.rule=Host(`matrix.local.tine-dev.de`) && PathPrefix(`/.well-known/matrix`)

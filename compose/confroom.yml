@@ -25,6 +25,6 @@ services:
       TINE20_URL: http://web:80
       TINE20_CALENDAR_ID: f9d3f277db4862986ceb1982f629e97c8c203832
       LOGFILE: /conference/logs/weekly.log
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network

@@ -1,6 +1,7 @@
 services:
   postfix:
-    image: dockerregistry.metaways.net/tine20/docker/postfix:1.0.5
+    #image: dockerregistry.metaways.net/tine20/docker/postfix:1.0.5
+    image: postfix:1.0.5
     environment:
       MYSQL_HOST: db
       MYSQL_DB: &postfixdb postfix
@@ -8,9 +9,9 @@ services:
       MYSQL_PASSWORD: &mysqlpw "${MYSQL_PASSWORD:-tine20pw}"
     depends_on:
       - db
-    networks:
-      - internal_network
-      - external_network
+    #networks:
+    #  - internal_network
+    #  - external_network
     ports:
     - "4025:25"
     #  - "587:587"
@@ -18,7 +19,8 @@ services:
     stop_grace_period: 1s
 
   dovecot:
-    image: dockerregistry.metaways.net/tine20/docker/dovecot:1.0.3
+    #image: dockerregistry.metaways.net/tine20/docker/dovecot:1.0.3
+    image: dovecot:1.0.3
     environment:
       MYSQL_HOST: db
       MYSQL_DB: &dovecotdb dovecot
@@ -28,9 +30,9 @@ services:
       - db
     volumes:
       - ./configs/mailstack/sieve-trace-log.conf:/etc/dovecot/conf.d/90-sieve-trace-log.conf
-    networks:
-      - internal_network
-      - external_network
+    #networks:
+    #  - internal_network
+    #  - external_network
     ports:
     - "4143:143"
     #  - "110:110"
@@ -39,7 +41,8 @@ services:
     stop_grace_period: 1s
 
   mailstack:
-    image: dockerregistry.metaways.net/tine20/docker/mailstackcontrol:1.0.5
+    #image: dockerregistry.metaways.net/tine20/docker/mailstackcontrol:1.0.5
+    image: mailstackcontrol:1.0.5
     environment:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
       MYSQL_USER: *mysqluser
@@ -51,16 +54,16 @@ services:
       - ./tine20/etc/sql/dovecot_tables.sql:/root/dovecot_init.sql
       - ./tine20/etc/sql/postfix_tables.sql:/root/postfix_init.sql
       - ./tine20/etc/sql/postfixmultiinstance_tables.sql:/root/postfixmultiinstance_init.sql
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network
 
   mailcatcher:
     image: dockage/mailcatcher:0.9.0
     ports:
       - "4006:1080"
     networks: 
-      - internal_network
-      - external_network
+    #  - internal_network
+    #  - external_network
     labels:
       - traefik.enable=true
       - traefik.http.routers.mailcatcher.rule=Host(`mailcatcher.local.tine-dev.de`)

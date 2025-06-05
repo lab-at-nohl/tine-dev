@@ -20,9 +20,9 @@ services:
       TEST_INTEGRATION_WS_URL: ws://broadcasthub:80
       TEST_E2E_WS_URL: ws://broadcasthub:80
       DEBUG: Tine20Broadcasthub:*
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network
     links:
       - traefik:tine.local.tine-dev.de
     labels:

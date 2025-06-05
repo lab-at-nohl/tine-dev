@@ -134,12 +134,17 @@ class NpmInstallCommand extends DockerCommand
         // NOTE: we can't use getComposeCommand here as mutagen has a ro filesystem and even if we skip mutagen here
         //       it runs in the existing node container with ro filesystem (well we could kill the node-container but
         //       this tradeoff seems to big
-        passthru("docker run --rm \
-            --user " . trim(`id -u`) . ':' . trim(`id -g`) . " \
+        #passthru("docker run --rm \
+        #    --user " . trim(`id -u`) . ':' . trim(`id -g`) . " \
+        #    -v $localCacheDir:/.npm \
+        #    -v $dir:/usr/share/tine20/Tinebase/js \
+        #    {$env['WEBPACK_IMAGE']} \
+        #    sh -c 'cd /usr/share/tine20/Tinebase/js && npm prune --no-optional --ignore-scripts'", $result_code); // --loglevel verbose
+        passthru("podman run --rm \
             -v $localCacheDir:/.npm \
             -v $dir:/usr/share/tine20/Tinebase/js \
             {$env['WEBPACK_IMAGE']} \
-            sh -c 'cd /usr/share/tine20/Tinebase/js && npm prune --no-optional --ignore-scripts'", $result_code); // --loglevel verbose
-        return $result_code;
+            sh -c 'cd /usr/share/tine20/Tinebase/js && npm prune --no-optional --ignore-scripts'", $result_code);
+	return $result_code;
     }
 }

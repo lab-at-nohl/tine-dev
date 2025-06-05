@@ -11,5 +11,5 @@ services:
     # see https://github.com/docker-library/mysql/issues/422
     security_opt:
       - seccomp:unconfined
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network

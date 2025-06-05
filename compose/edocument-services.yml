@@ -6,5 +6,5 @@ services:
 
   edocument-services:
     image: registry.rz1.metaways.net/tine/edocument-services:0.0.14-amd64
-    networks:
-      - internal_network
+    #networks:
+    #  - internal_network

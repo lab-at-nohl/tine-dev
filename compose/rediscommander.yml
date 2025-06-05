@@ -8,6 +8,6 @@ services:
     - REDIS_HOSTS=local:cache:6379
     ports:
     - "4004:8081"
-    networks:
-      - external_network
-      - internal_network
+    #networks:
+    #  - external_network
+    #  - internal_network

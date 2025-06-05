@@ -11,9 +11,9 @@ services:
       - ./configs/clamav/clamd.conf:/etc/clamav/clamd.conf:ro
       - ./configs/clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro
       - ./configs/clamav/init:/init
-    networks:
-      - internal_network
-      - external_network
+    #networks:
+    #  - internal_network
+    #  - external_network
   web:
     volumes:
       - ./configs/clamav/clamav.inc.php:/etc/tine20/conf.d/clamav.inc.php:ro
