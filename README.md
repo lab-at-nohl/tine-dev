@@ -109,7 +109,7 @@ podman ps -a # << just to make sure >>
 #     Up ...     tine20_web_1
 #     Up ...     tine20_webpack_1
 #
-# prepare source code, install npm (consider freeing space if full node:18.9 is used, see above)
+# prepare source code, install npm (consider freeing space if full node:18.9.0 is used, see above)
 ./console src:composer install
 ./console src:npmInstall
 # Generate self-signed cert and copy CA to host to import into browser 
@@ -238,7 +238,7 @@ And link to publicly available images:
         #    'web' => 'dockerregistry.metaways.net/tine20/tine20/dev:2024.11-8.3',
         #    'webpack' => 'dockerregistry.metaways.net/tine20/tine20/node:18.9.0-alpine-r1',
             'web' => 'registry.hub.docker.com/tinegroupware/dev:main-8.3',
-            'webpack' => 'docker.io/library/node:18.9-alpine',
+            'webpack' => 'localhost/18.9.0-alpine',
 ```
 
 ### cli/Commands/Src/NpmCommand.php

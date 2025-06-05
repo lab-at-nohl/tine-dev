@@ -16,7 +16,7 @@ class DockerCommand extends BaseCommand
     protected $tablePrefix = null;
     protected $homeDir = null;
     #protected array $composeCommand = ['docker', 'compose'];
-    protected array $composeCommand = ['podman', 'compose', '--podman-run-args="--pod=tine20"'];`
+    protected array $composeCommand = ['podman', 'compose', '--podman-run-args="--pod=tine20"'];
     protected string $bchub_repo = 'https://github.com/tine-groupware/broadcasthub.git';
 
     protected static $imageMap = [
@@ -41,7 +41,7 @@ class DockerCommand extends BaseCommand
         #    'web' => 'dockerregistry.metaways.net/tine20/tine20/dev:2024.11-8.3',
 	#    'webpack' => 'dockerregistry.metaways.net/tine20/tine20/node:18.9.0-alpine-r1',
 	    'web' => 'registry.hub.docker.com/tinegroupware/dev:main-8.3',
-            'webpack' => 'docker.io/library/node:18.9-alpine',
+            'webpack' => 'localhost/node:18.9.0-alpine',
         ],
         'erzbistum/main' => [
             'web' => 'dockerregistry.metaways.net/tine20/tine20/dev:2024.11-8.2',
